@@ -1,0 +1,22 @@
+<table class="table table-bordered">
+    <thead>
+        <th>Domain</th>
+        <th>Page URL</th>
+        <th>Clickbait Link</th>
+        <th>Relevance</th>
+        <th>Up Votes</th>
+        <th>Down Votes</th>
+        <th>Date</th>
+    </thead>
+        <% for (var i=0; i < results.length; i++) { %>
+            <tr>
+                <td><%= results[i].pageDomain %></td>
+                <td><a target="_blank" href="<%= results[i].pageUrl %>"><%= results[i].pageUrl %></a></td>
+                <td><a target="_blank" href="<%= results[i].pageUrl + results[i].clickBaitLink %>"><%= results[i].clickBaitLink %></a></td>
+                <td><%= results[i].relevance %></td>
+                <td><%= results[i].upVotes %></td>
+                <td><%= results[i].downVotes %></td>
+                <td><%= results[i].updated_at %></td>
+            </tr>
+        <% } %>
+</table>
