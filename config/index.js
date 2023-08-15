@@ -9,6 +9,6 @@ if (process.env.USERNAME) {
 
 module.exports = {
   getDBConnectionString: function() {
-    return 'mongodb://' + config.username + ':' + config.password + '@yourMlabId';
+    return `mongodb+srv://${config.username}:${config.password}@cluster0.dgik4gh.mongodb.net/?retryWrites=true&w=majority`
   }
 };

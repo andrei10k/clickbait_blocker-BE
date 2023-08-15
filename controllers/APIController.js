@@ -3,13 +3,12 @@ var ClickbaitModel = require('../models/clickbaitModel');
 module.exports = function(app) {
 
   //clickbait links
-  app.post('/yourapi/post', function(req, res) {
+  app.post('/api/clickbait', function(req, res) {
 
     ClickbaitModel.findOne({
       pageDomain: req.body.pageDomain,
       clickBaitLink: req.body.clickBaitLink
-    }, function(err, doc) {
-      if (err) throw err;
+    }).then(function(doc) {
       if (doc) {
         if (Number(req.body.upVotes)) {
           doc.upVotes =  doc.upVotes + 1;
@@ -18,44 +17,48 @@ module.exports = function(app) {
         }
         doc.relevance = doc.upVotes - doc.downVotes;
         doc.updated_at = new Date(Date.now()).toLocaleString();
-        doc.save(function(err){
-          if (err) throw err;
-          res.send('Success');
-        })
+        return doc.save();
       } else {
         var newClickbait = ClickbaitModel({
           pageUrl: req.body.pageUrl,
           pageDomain: req.body.pageDomain,
           clickBaitLink: req.body.clickBaitLink,
-          upVotes: req.body.upVotes || 0,
-          downVotes: req.body.downVotes || 0,
-          relevance: req.body.upVotes - req.body.downVotes,
+          upVotes: Number(req.body.upVotes),
+          downVotes: Number(req.body.downVotes),
+          relevance: Number(req.body.upVotes) - Number(req.body.downVotes),
+          created_at: new Date(Date.now()).toLocaleString(),
           updated_at: new Date(Date.now()).toLocaleString()
         });
-        newClickbait.save(function(err){
-          if (err) throw err;
-          res.send('Success');
-        })
+        return newClickbait.save();
       }
+    }).then(function() {
+      res.send('Success');
+    }).catch(function(err) {
+      throw err;
     });
-
   });
 
-  app.get('/yourapi/get/all', function(req, res) {
-    ClickbaitModel.find({}, function(err, result){
-      if (err) throw err;
-      res.render('clickbaits_grid', { results: result });
-    })
+  app.get('/api/clickbait/get/all', function(req, res) {
+    ClickbaitModel.find({})
+      .then(function(result) {
+        res.render('clickbaits_grid', { results: result });
+      })
+      .catch(function(err) {
+        throw err;
+      });
   });
 
-  app.get('/yourapi/get', function(req, res) {
+  app.get('/api/clickbait', function(req, res) {
     if (req.query.pageDomain && req.query.relevance) {
       ClickbaitModel.find({
         pageDomain: req.query.pageDomain
-      }).where('relevance').gt(req.query.relevance).
-      exec(function(err, result) {
-        res.send(result);
-      });
+      }).where('relevance').gt(req.query.relevance)
+        .then(function(result) {
+          res.send(result);
+        })
+        .catch(function(err) {
+          throw err;
+        });
     } else {
       res.status(500);
       res.send('bad request');
