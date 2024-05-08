@@ -1,4 +1,6 @@
 var ClickbaitModel = require('../models/clickbaitModel');
+const axios = require('axios');
+const { getTextFromUrl, tokenizer } = require('../utils/helpers');
 
 module.exports = function(app) {
 
@@ -61,6 +63,50 @@ module.exports = function(app) {
     } else {
       res.status(500);
       res.send('bad request');
+    }
+  });
+
+  app.get('/api/summarize', async function(req, res) {
+    const url = req.query.url;
+
+    const headers = {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer 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`
+    }
+
+    const content = await getTextFromUrl(url)
+
+    const chatGptEncoderDecoder = tokenizer()
+
+    const contentTokens = chatGptEncoderDecoder.encode(content)
+    const truncatedContentTokens = contentTokens.slice(0, 2000)
+    const truncatedContent = chatGptEncoderDecoder.decode(truncatedContentTokens)
+
+    const prompt = [
+      {
+        role: 'user',
+        content: 'In only 2 sentences, summarize the following content, but use the language in the content:'
+      },
+      {
+        role: 'user',
+        content: truncatedContent
+      }
+    ]
+
+    const data = {
+      messages: prompt,
+      model: 'gpt-3.5-turbo'
+    }
+
+    try {
+      const response = await axios.post('https://api.openai.com/v1/chat/completions', data, {
+        headers
+      })
+      res.send(response.data.choices[0].message.content.trim())
+    } catch (error) {
+      console.error('Error fetching ChatGPT response:', error)
+      res.status(500)
+      res.send('Error fetching ChatGPT response')
     }
   });
 };
