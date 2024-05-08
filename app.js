@@ -1,3 +1,5 @@
+// eslint-disable-next-line no-unused-vars
+const dotenv = require('dotenv').config();
 var express = require('express');
 var cors = require('cors');
 var path = require('path');

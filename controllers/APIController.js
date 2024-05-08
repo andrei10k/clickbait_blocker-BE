@@ -4,7 +4,6 @@ module.exports = function(app) {
 
   //clickbait links
   app.post('/api/clickbait', function(req, res) {
-
     ClickbaitModel.findOne({
       pageDomain: req.body.pageDomain,
       clickBaitLink: req.body.clickBaitLink
