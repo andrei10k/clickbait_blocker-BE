@@ -79,13 +79,13 @@ module.exports = function(app) {
     const chatGptEncoderDecoder = tokenizer()
 
     const contentTokens = chatGptEncoderDecoder.encode(content)
-    const truncatedContentTokens = contentTokens.slice(0, 2000)
+    const truncatedContentTokens = contentTokens.slice(0, 700)
     const truncatedContent = chatGptEncoderDecoder.decode(truncatedContentTokens)
 
     const prompt = [
       {
         role: 'user',
-        content: 'In only 2 sentences, summarize the following content, but use the language in the content:'
+        content: 'In only 2 sentences, summarize the following content but in english:'
       },
       {
         role: 'user',
