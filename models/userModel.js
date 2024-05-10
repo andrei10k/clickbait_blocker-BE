@@ -12,7 +12,10 @@ var userSchema = new Schema({
     type: Date,
     default: Date.now
   },
-  last_login_date: Date
+  last_login_date: {
+    type: Date,
+    default: Date.now
+  }
 })
 
 var User = mongoose.model('User', userSchema)

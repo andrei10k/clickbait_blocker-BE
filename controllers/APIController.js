@@ -1,4 +1,5 @@
-var ClickbaitModel = require('../models/clickbaitModel')
+const ClickbaitModel = require('../models/clickbaitModel')
+const UserModel = require('../models/userModel')
 const axios = require('axios')
 const { getTextFromUrl, tokenizer } = require('../utils/helpers')
 
@@ -83,13 +84,13 @@ module.exports = function (app) {
     const chatGptEncoderDecoder = tokenizer()
 
     const contentTokens = chatGptEncoderDecoder.encode(content)
-    const truncatedContentTokens = contentTokens.slice(0, 700)
+    const truncatedContentTokens = contentTokens.slice(0, 1000)
     const truncatedContent = chatGptEncoderDecoder.decode(truncatedContentTokens)
 
     const prompt = [
       {
         role: 'user',
-        content: 'In only 2 sentences, summarize the following content but in english:'
+        content: 'In only 2 sentences, summarize the following content:'
       },
       {
         role: 'user',
@@ -111,6 +112,21 @@ module.exports = function (app) {
       console.error('Error fetching ChatGPT response:', error)
       res.status(500)
       res.send('Error fetching ChatGPT response')
+    }
+  })
+
+  app.post('/api/user', async function (req, res) {
+    try {
+      const user = await UserModel.findOneAndUpdate(
+        { email: req.body.email },
+        { $set: { last_login_date: Date.now() } },
+        { new: true, upsert: true }
+      )
+
+      res.send(user)
+    } catch (error) {
+      res.status(400)
+      res.send(error)
     }
   })
 }
