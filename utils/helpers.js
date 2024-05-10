@@ -1,19 +1,19 @@
-const puppeteer = require('puppeteer');
+const puppeteer = require('puppeteer')
 const { encoding_for_model } = require('tiktoken')
 
 async function getTextFromUrl(url) {
-    const browser = await puppeteer.launch();
-    const page = await browser.newPage();
-    await page.goto(url, { waitUntil: 'domcontentloaded' });
+  const browser = await puppeteer.launch()
+  const page = await browser.newPage()
+  await page.goto(url, { waitUntil: 'domcontentloaded' })
 
-    // Extract visible text content
-    const textContent = await page.evaluate(() => {
-        return document.body.innerText;
-    });
+  // Extract visible text content
+  const textContent = await page.evaluate(() => {
+    return document.body.innerText
+  })
 
-    await browser.close();
+  await browser.close()
 
-    return textContent.trim();
+  return textContent.trim()
 }
 
 const tokenizer = () => {
@@ -41,6 +41,6 @@ const tokenizer = () => {
 }
 
 module.exports = {
-    getTextFromUrl,
-    tokenizer
-};
+  getTextFromUrl,
+  tokenizer
+}

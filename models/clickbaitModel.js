@@ -1,6 +1,6 @@
-var mongoose = require('mongoose');
+var mongoose = require('mongoose')
 
-var Schema = mongoose.Schema;
+var Schema = mongoose.Schema
 
 var clickbaitSchema = new Schema({
   pageUrl: String,
@@ -10,8 +10,8 @@ var clickbaitSchema = new Schema({
   downVotes: Number,
   relevance: Number,
   updated_at: String
-});
+})
 
-var Clickbait = mongoose.model('Clickbait', clickbaitSchema);
+var Clickbait = mongoose.model('Clickbait', clickbaitSchema)
 
-module.exports = Clickbait;
+module.exports = Clickbait

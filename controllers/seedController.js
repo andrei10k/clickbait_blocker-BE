@@ -1,7 +1,7 @@
-var clickbaitModel = require('../models/clickbaitModel');
+var clickbaitModel = require('../models/clickbaitModel')
 
-module.exports = function(app) {
-  app.get('/api/seed', function(req, res) {
+module.exports = function (app) {
+  app.get('/api/seed', function (req, res) {
     var linksArr = [
       {
         pageUrl: 'www.test.ro',
@@ -23,10 +23,10 @@ module.exports = function(app) {
         country: 'Romania',
         updated_at: '10.02.2016'
       }
-    ];
+    ]
 
-    clickbaitModel.create(linksArr, function(err, results) {
-      res.send(results);
+    clickbaitModel.create(linksArr, function (err, results) {
+      res.send(results)
     })
   })
-};
+}
