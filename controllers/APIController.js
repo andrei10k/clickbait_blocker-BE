@@ -73,19 +73,33 @@ module.exports = function (app) {
 
   app.get('/api/summarize', async function (req, res) {
     const url = req.query.url
+    const title = req.query.title
 
     const headers = {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${process.env.CHATGPT_API_KEY}`
     }
 
-    const content = await getTextFromUrl(url)
+    let content = ''
+    try {
+      content = await getTextFromUrl(url)
+    } catch (error) {
+      console.error('Error fetching content from URL:', error)
+      res.status(500)
+      res.send('Error fetching content from URL')
+      return
+    }
 
     const chatGptEncoderDecoder = tokenizer()
 
     const contentTokens = chatGptEncoderDecoder.encode(content)
     const truncatedContentTokens = contentTokens.slice(0, 1000)
     const truncatedContent = chatGptEncoderDecoder.decode(truncatedContentTokens)
+
+    if (!truncatedContent) {
+      res.send({ content: 'There is nothing to summarize, please try another url' })
+      return
+    }
 
     const prompt = [
       {
@@ -107,7 +121,22 @@ module.exports = function (app) {
       const response = await axios.post('https://api.openai.com/v1/chat/completions', data, {
         headers
       })
-      res.send(response.data.choices[0].message.content.trim())
+
+      const content = response.data.choices[0].message.content.trim()
+
+      const followUpResponse = await axios.post('https://api.openai.com/v1/chat/completions', {
+        messages: [
+          {
+            role: 'user',
+            content: 'I will give you next a summary of the article and the article title. respond with how confident are you that the title is clickbait based on the content. please respond with only a percentage, not extra words. i want you to respond based on only what you know. the title and the content. do not consider other context or missing informations. The summary is ' + content + '. The article title is: ' + title
+          }
+        ],
+        model: 'gpt-3.5-turbo'
+      }, {
+        headers
+      })
+
+      res.send({ content, clickbait_confidence: followUpResponse.data.choices[0].message.content })
     } catch (error) {
       console.error('Error fetching ChatGPT response:', error)
       res.status(500)
