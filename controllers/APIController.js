@@ -114,7 +114,7 @@ module.exports = function (app) {
 
     const data = {
       messages: prompt,
-      model: 'gpt-3.5-turbo'
+      model: 'gpt-4o-mini'
     }
 
     try {
@@ -131,7 +131,7 @@ module.exports = function (app) {
             content: 'I will give you next a summary of the article and the article title. respond with how confident are you that the title is clickbait based on the content. please respond with only a percentage, not extra words. i want you to respond based on only what you know. the title and the content. do not consider other context or missing informations. The summary is ' + content + '. The article title is: ' + title
           }
         ],
-        model: 'gpt-3.5-turbo'
+        model: 'gpt-4o-mini'
       }, {
         headers
       })
