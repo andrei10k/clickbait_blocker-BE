@@ -75,6 +75,12 @@ module.exports = function (app) {
     const url = req.query.url
     const title = req.query.title
 
+    if (!url || !/^https?:\/\//i.test(url)) {
+      res.status(400)
+      res.send('An absolute http(s) url is required')
+      return
+    }
+
     const headers = {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${process.env.CHATGPT_API_KEY}`

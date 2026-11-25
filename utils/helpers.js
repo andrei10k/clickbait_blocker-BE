@@ -2,18 +2,29 @@ const puppeteer = require('puppeteer')
 const { encoding_for_model } = require('tiktoken')
 
 async function getTextFromUrl(url) {
-  const browser = await puppeteer.launch()
-  const page = await browser.newPage()
-  await page.goto(url, { waitUntil: 'domcontentloaded' })
-
-  // Extract visible text content
-  const textContent = await page.evaluate(() => {
-    return document.body.innerText
+  const browser = await puppeteer.launch({
+    headless: 'new',
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
   })
 
-  await browser.close()
+  try {
+    const page = await browser.newPage()
+    await page.setUserAgent(
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+    )
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 20000 })
 
-  return textContent.trim()
+    // Extract visible text content
+    const textContent = await page.evaluate(() => {
+      return document.body.innerText
+    })
+
+    return textContent.trim()
+  } finally {
+    // Chromium is hundreds of MB. Without this a failed goto left one behind
+    // per request until the instance ran out of memory.
+    await browser.close().catch(() => {})
+  }
 }
 
 const tokenizer = () => {
