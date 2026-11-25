@@ -71,7 +71,35 @@ module.exports = function (app) {
     }
   })
 
-  app.get('/api/summarize', async function (req, res) {
+  // Chromium costs hundreds of MB per instance. Runs are serialised and the
+  // queue is capped so a burst of AI previews cannot exhaust the machine.
+  let summarizeQueue = Promise.resolve()
+  let summarizePending = 0
+
+  app.get('/api/summarize', function (req, res) {
+    if (summarizePending >= 3) {
+      res.status(429)
+      res.send('The AI is busy, try again in a moment')
+      return
+    }
+
+    summarizePending += 1
+    summarizeQueue = summarizeQueue
+      .then(() => summarizeArticle(req, res))
+      .catch((error) => {
+        console.error('Summarize failed:', error)
+        if (!res.headersSent) {
+          res.status(500)
+          res.send('Error fetching ChatGPT response')
+        }
+      })
+      .finally(() => {
+        summarizePending -= 1
+      })
+      .catch(() => {})
+  })
+
+  async function summarizeArticle(req, res) {
     const url = req.query.url
     const title = req.query.title
 
@@ -148,7 +176,7 @@ module.exports = function (app) {
       res.status(500)
       res.send('Error fetching ChatGPT response')
     }
-  })
+  }
 
   app.post('/api/user', async function (req, res) {
     try {
