@@ -33,7 +33,13 @@ app.use('/all', routes)
 app.use('/users', users)
 
 mongoose.Promise = global.Promise
-mongoose.connect(config.getDBConnectionString())
+mongoose.connect(config.getDBConnectionString()).catch(function (err) {
+  console.error('MongoDB connection failed:', err.message)
+})
+
+mongoose.connection.on('error', function (err) {
+  console.error('MongoDB error:', err.message)
+})
 
 //seedController(app);
 apiController(app)

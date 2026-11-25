@@ -1,11 +1,26 @@
 const ClickbaitModel = require('../models/clickbaitModel')
 const UserModel = require('../models/userModel')
+const mongoose = require('mongoose')
 const axios = require('axios')
 const { getTextFromUrl, tokenizer } = require('../utils/helpers')
 
 module.exports = function (app) {
+  // A rejected query used to be rethrown, which left the request open until
+  // nginx timed out with a 504 that carried no CORS header.
+  function databaseDown(res) {
+    if (mongoose.connection.readyState === 1) {
+      return false
+    }
+    res.status(503)
+    res.send('Database unavailable')
+    return true
+  }
+
   //clickbait links
   app.post('/api/clickbait', function (req, res) {
+    if (databaseDown(res)) {
+      return
+    }
     ClickbaitModel.findOne({
       pageDomain: req.body.pageDomain,
       clickBaitLink: req.body.clickBaitLink
@@ -38,21 +53,32 @@ module.exports = function (app) {
         res.send('Success')
       })
       .catch(function (err) {
-        throw err
+        console.error('POST /api/clickbait failed:', err.message)
+        res.status(500)
+        res.send('Database error')
       })
   })
 
   app.get('/api/clickbait/get/all', function (req, res) {
+    if (databaseDown(res)) {
+      return
+    }
+
     ClickbaitModel.find({})
       .then(function (result) {
         res.render('clickbaits_grid', { results: result })
       })
       .catch(function (err) {
-        throw err
+        console.error('GET /api/clickbait/get/all failed:', err.message)
+        res.status(500)
+        res.send('Database error')
       })
   })
 
   app.get('/api/clickbait', function (req, res) {
+    if (databaseDown(res)) {
+      return
+    }
     if (req.query.pageDomain && req.query.relevance) {
       ClickbaitModel.find({
         pageDomain: req.query.pageDomain
@@ -63,7 +89,9 @@ module.exports = function (app) {
           res.send(result)
         })
         .catch(function (err) {
-          throw err
+          console.error('GET /api/clickbait failed:', err.message)
+          res.status(500)
+          res.send('Database error')
         })
     } else {
       res.status(500)
