@@ -46,16 +46,28 @@ function clampScore(value) {
   return Math.max(0, Math.min(100, Math.round(number)))
 }
 
+// Ending the prompt differently changes the output, so the cache key carries the
+// prompt version: old entries stop being served.
+const PROMPT_VERSION = 2
+
+function cacheHash(url) {
+  return hashString('v' + PROMPT_VERSION + ':' + url)
+}
+
 async function summarizeWithModel(url, title, text) {
   const messages = [
     {
       role: 'system',
       content:
-        'You rate news articles for clickbait. ' +
+        'You write spoiler summaries so a reader can decide whether an article is worth opening.\n' +
+        'Rules for summary: write in the same language as the article text. ' +
+        'Carry the article actual information: who, what, when, where, numbers, and the outcome or next step. ' +
+        'Two to three sentences. Never describe or evaluate the headline, the title, or the page. ' +
+        'Never write phrases like "the article announces" or "the title suggests".\n' +
+        'Rules for keyPoints: 2 to 4 short factual bullets with the most concrete details.\n' +
         SCORE_RUBRIC +
-        ' The score answers: does the title match what the article actually delivers? ' +
-        'Reply with JSON only, no prose: ' +
-        '{"summary":"two sentences","score":0-100,"reason":"max 12 words","tags":["short","labels"]}'
+        '\nReply with JSON only, no prose: ' +
+        '{"summary":"...","keyPoints":["..."],"score":0-100,"reason":"max 12 words","tags":["short","labels"]}'
     },
     {
       role: 'user',
@@ -72,6 +84,7 @@ async function summarizeWithModel(url, title, text) {
 
   return {
     content: String(parsed.summary).trim(),
+    keyPoints: Array.isArray(parsed.keyPoints) ? parsed.keyPoints.slice(0, 4).map(String) : [],
     score,
     clickbait_confidence: score + '%',
     reason: String(parsed.reason || '').trim(),
@@ -84,13 +97,14 @@ async function readSummaryCache(url) {
     return null
   }
 
-  const doc = await SummaryModel.findOne({ urlHash: hashString(url) }).lean()
+  const doc = await SummaryModel.findOne({ urlHash: cacheHash(url) }).lean()
   if (!doc) {
     return null
   }
 
   return {
     content: doc.content,
+    keyPoints: doc.keyPoints || [],
     score: doc.score,
     clickbait_confidence: doc.score + '%',
     reason: doc.reason,
@@ -104,7 +118,7 @@ async function writeSummaryCache(url, result) {
   }
 
   await SummaryModel.updateOne(
-    { urlHash: hashString(url) },
+    { urlHash: cacheHash(url) },
     { $set: Object.assign({ url }, result, { createdAt: new Date() }) },
     { upsert: true }
   ).catch((error) => {

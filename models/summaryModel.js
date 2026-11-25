@@ -5,6 +5,7 @@ const summarySchema = new mongoose.Schema({
   urlHash: { type: String, required: true, unique: true },
   url: String,
   content: String,
+  keyPoints: [String],
   score: Number,
   reason: String,
   tags: [String],
