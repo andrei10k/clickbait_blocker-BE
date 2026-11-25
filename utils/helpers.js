@@ -1,57 +1,140 @@
+const crypto = require('crypto')
 const puppeteer = require('puppeteer')
-const { encoding_for_model } = require('tiktoken')
 
-async function getTextFromUrl(url) {
-  const browser = await puppeteer.launch({
-    headless: 'new',
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
-  })
+const USER_AGENT =
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+
+const MAX_EXCERPT_CHARS = 6000
+const BROWSER_IDLE_MS = 5 * 60 * 1000
+
+let browserPromise = null
+let browserTimer = null
+
+function hashString(value) {
+  return crypto.createHash('sha256').update(String(value)).digest('hex')
+}
+
+function stripHtml(html) {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+// Plain fetch first. Most articles are server rendered, and this avoids
+// spawning Chromium for the common case.
+async function fetchText(url) {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 12000)
 
   try {
-    const page = await browser.newPage()
-    await page.setUserAgent(
-      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
-    )
-    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 20000 })
-
-    // Extract visible text content
-    const textContent = await page.evaluate(() => {
-      return document.body.innerText
+    const response = await fetch(url, {
+      headers: { 'user-agent': USER_AGENT, accept: 'text/html' },
+      signal: controller.signal,
+      redirect: 'follow'
     })
 
-    return textContent.trim()
+    if (!response.ok) {
+      throw new Error('status ' + response.status)
+    }
+
+    return stripHtml(await response.text())
   } finally {
-    // Chromium is hundreds of MB. Without this a failed goto left one behind
-    // per request until the instance ran out of memory.
-    await browser.close().catch(() => {})
+    clearTimeout(timer)
   }
 }
 
-const tokenizer = () => {
-  const enc = encoding_for_model('gpt-3.5-turbo')
+function scheduleBrowserClose() {
+  clearTimeout(browserTimer)
+  browserTimer = setTimeout(async () => {
+    const pending = browserPromise
+    browserPromise = null
+    if (pending) {
+      const browser = await pending.catch(() => null)
+      if (browser) {
+        await browser.close().catch(() => {})
+      }
+    }
+  }, BROWSER_IDLE_MS)
+}
 
-  const encode = string => {
-    const tokens = enc.encode(string)
-    return tokens
+function getBrowser() {
+  if (!browserPromise) {
+    browserPromise = puppeteer.launch({
+      headless: 'new',
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+    })
+  }
+  return browserPromise
+}
+
+async function browserText(url) {
+  const browser = await getBrowser()
+  const page = await browser.newPage()
+
+  try {
+    await page.setUserAgent(USER_AGENT)
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 20000 })
+    return await page.evaluate(() => document.body.innerText)
+  } finally {
+    await page.close().catch(() => {})
+    scheduleBrowserClose()
+  }
+}
+
+async function getTextFromUrl(url) {
+  let text = ''
+  try {
+    text = await fetchText(url)
+  } catch (error) {
+    text = ''
   }
 
-  const decode = encoded => {
-    const words = enc.decode(encoded)
-    return new TextDecoder().decode(words)
+  if (text.length < 400) {
+    text = await browserText(url)
   }
 
-  const free = () => {
-    enc.free()
+  return text.slice(0, MAX_EXCERPT_CHARS).trim()
+}
+
+function parseJsonLoose(value) {
+  if (!value) {
+    return null
   }
 
-  return {
-    decode,
-    encode,
-    free
+  const cleaned = String(value)
+    .trim()
+    .replace(/^```(?:json)?/i, '')
+    .replace(/```$/, '')
+    .trim()
+
+  try {
+    return JSON.parse(cleaned)
+  } catch (error) {
+    const start = cleaned.indexOf('{')
+    const end = cleaned.lastIndexOf('}')
+    if (start === -1 || end <= start) {
+      return null
+    }
+    try {
+      return JSON.parse(cleaned.slice(start, end + 1))
+    } catch (inner) {
+      return null
+    }
   }
 }
 
 module.exports = {
   getTextFromUrl,
-  tokenizer
+  hashString,
+  parseJsonLoose,
+  USER_AGENT
 }
