@@ -13,6 +13,15 @@ const OPENAI_URL = 'https://api.openai.com/v1/chat/completions'
 const SUMMARIZE_DAILY_LIMIT = 25
 const RANK_DAILY_LIMIT = 20
 
+// Both scoring paths share this scale so a headline is not rated red in the page
+// scan and green in the preview popover.
+const SCORE_RUBRIC =
+  'Score the headline for clickbait on this scale: ' +
+  '0-20 clearly not clickbait, 21-40 mildly sensational, 41-60 mixed, ' +
+  '61-80 strong clickbait signals, 81-100 misleading or withholding key information. ' +
+  'Most headlines are not clickbait, so use the lower half unless the title clearly baits the reader. ' +
+  'Judge only how the title is written, not how good the article is.'
+
 function askOpenAi(messages) {
   return axios
     .post(
@@ -42,7 +51,10 @@ async function summarizeWithModel(url, title, text) {
     {
       role: 'system',
       content:
-        'You rate news articles for clickbait. Reply with JSON only, no prose: ' +
+        'You rate news articles for clickbait. ' +
+        SCORE_RUBRIC +
+        ' The score answers: does the title match what the article actually delivers? ' +
+        'Reply with JSON only, no prose: ' +
         '{"summary":"two sentences","score":0-100,"reason":"max 12 words","tags":["short","labels"]}'
     },
     {
@@ -172,7 +184,9 @@ async function rankWithModel(pageUrl, links) {
     {
       role: 'system',
       content:
-        'You rate headlines for clickbait. Reply with JSON only: ' +
+        'You rate headlines for clickbait. ' +
+        SCORE_RUBRIC +
+        ' Reply with JSON only: ' +
         '{"results":[{"url":"...","score":0-100,"reason":"max 10 words"}]}. ' +
         'Return exactly one entry per input url, using the url as given.'
     },
