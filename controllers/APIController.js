@@ -359,6 +359,13 @@ module.exports = function (app) {
       return
     }
 
+    // Cached results stay public, fresh model calls need an account.
+    if (!(await sessionEmail(req))) {
+      res.status(401)
+      res.send('Sign in to use AI features')
+      return
+    }
+
     const quota = await consumeQuota(req, 'summarize')
     if (!quota.allowed) {
       res.set('Retry-After', '3600')
@@ -413,6 +420,13 @@ module.exports = function (app) {
         res.send({ results: cached.results, cached: true })
         return
       }
+    }
+
+    // Cached results stay public, fresh model calls need an account.
+    if (!(await sessionEmail(req))) {
+      res.status(401)
+      res.send('Sign in to use AI features')
+      return
     }
 
     const quota = await consumeQuota(req, 'rank')
